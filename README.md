@@ -329,4 +329,4 @@ state_machine<
 ```
 
 
-Browse [simple.cc](https://github.com/notweerdmonk/cfsm/blob/master/simple.cc)
+Browse [simple.cc](https://github.com/notweerdmonk/cfsm/blob/master/examples/simple.cc)
