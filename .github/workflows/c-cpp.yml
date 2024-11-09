@@ -1,0 +1,24 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: make
+      run: make
+    - name: run examples
+      shell: bash
+      run: |
+        ./examples/simple
+        retcode=$?
+        ./examples/trafficlights
+        if [[ $? -ne 0 ]]; then exit 1; elif [[ $retcode -ne 0 ]]; then exit 1; else exit 0; fi
