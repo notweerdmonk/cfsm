@@ -2,7 +2,7 @@
 
 ###### Compile-time finite state machine library
 
-Browse [smbuilder.hpp](https://github.com/notweerdmonk/cfsm/blob/main/smbuilder.hpp)
+Browse [smbuilder.hpp](https://github.com/notweerdmonk/cfsm/blob/master/smbuilder.hpp)
 
 #### Static disposition
 States and transitions between them must be known at compile-time. The
@@ -82,7 +82,7 @@ See example programs for type identifier schemes. A static helper function named
 `gen_type_id` which returns a `std::size_t` value based on an incremented static
 variable is provided for the `state_machine` class.
 
-Browse [examples](https://github.com/notweerdmonk/cfsm/tree/main/examples)
+Browse [examples](https://github.com/notweerdmonk/cfsm/tree/master/examples)
 
 #### Simple usage
 User defined states derive from the abstract `state` base class and override the
@@ -329,4 +329,4 @@ state_machine<
 ```
 
 
-Browse [simple.cc](https://github.com/notweerdmonk/cfsm/blob/main/simple.cc)
+Browse [simple.cc](https://github.com/notweerdmonk/cfsm/blob/master/simple.cc)
