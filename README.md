@@ -1,6 +1,10 @@
+![Examples](https://github.com/notweerdmonk/cfsm/actions/workflows/c-cpp.yml/badge.svg)
+
 # CFSM
 
 ###### Compile-time finite state machine library
+
+C++11, C++14, C++17, C++20
 
 Browse [smbuilder.hpp](https://github.com/notweerdmonk/cfsm/blob/master/smbuilder.hpp)
 
