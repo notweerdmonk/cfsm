@@ -26,7 +26,7 @@
 #define __SMBUILDER_HPP__
 
 /**
- * @file smbuilder.hpp
+ * @file cfsm.hpp
  * @brief Complie-time finite state machine library.
  * @author notweerdmonk
  */
@@ -34,7 +34,7 @@
 /**
  * @mainpage Compile-time finite state machine library
  *
- * Browse @link smbuilder.hpp @endlink
+ * Browse @link cfsm.hpp @endlink
  *
  * @section header Static disposition
  * The states and transitions between them must be known at compile-time. The
@@ -42,7 +42,7 @@
  *
  * @section states States
  * All user defined states which are represented by classes should inherit
- * from the base "state" class provided in "smbuilder.hpp". The base class
+ * from the base "state" class provided in "cfsm.hpp". The base class
  * provides on_enter and on_exit member functions which are called on entry
  * to state and exit from the state respectively. These pure virtual member
  * functions shall be overriden in the user defined classes.
@@ -112,7 +112,7 @@
  * named "gen_type_id" which returns a std::size_t value based on an
  * incremented static variable is provided for the "state_machine" class.
  *
- * @see smbuilder.hpp
+ * @see cfsm.hpp
  */
 
 #include <type_traits>
@@ -325,6 +325,84 @@ namespace cfsm {
   class state_machine {
     base_state* p_current_state = nullptr; ///< Pointer to the current state object.
   
+    /* Ensure the given state is valid */
+
+#if __cplusplus >= 201402L
+
+    /**
+     * @brief Checks if a type is derived from a base class.
+     * 
+     * This struct evaluates whether a given type `derived` is derived from the
+     * specified base class `base`.
+     * 
+     * @tparam base The base class to check against.
+     * @tparam derived The type to check if it's derived from `base`.
+     */
+    template <typename base, typename derived>
+    struct is_base_of_v {
+      /**
+       * @brief The boolean result indicating whether `derived` is derived from
+       * `base`.
+       */
+      static constexpr bool value = std::is_base_of<base, derived>::value;
+    };
+  
+    /**
+     * @brief Checks if all provided types are derived from the base class.
+     * 
+     * This structure checks if a variadic list of `derived` types are all
+     * derived from the specified base class `base` using conjunction.
+     * 
+     * @tparam base The base class to check against.
+     * @tparam derived The variadic template list of types to check.
+     */
+    template <typename base, typename... derived>
+    struct are_valid_states {
+      /**
+       * @brief The boolean result indicating whether all `derived` types are
+       * derived from `base`.
+       */
+      static constexpr bool value =
+        conjunction_v<is_base_of_v<base, derived>...>;
+    };
+  
+    /**
+     * @brief Checks if a given type matches any type in the list of valid
+     * states.
+     * 
+     * This static function evaluates whether the given type `T` matches
+     * any of the valid states in a predefined list of types.
+     * 
+     * @tparam T The type to be checked against valid states.
+     * @return constexpr bool `true` if `T` matches any of the valid states,
+     * `false` otherwise.
+     */
+    template <typename T>
+    static
+    constexpr bool is_valid_state() {
+      return disjunction_v<std::is_same<T, states>...>;
+    }
+
+#else /* __cplusplus >= 201402L */
+
+    /**
+     * @brief Checks if a given type is derived from a base state.
+     * 
+     * This static function evaluates whether the given type `T` is derived
+     * from the predefined `base_state` type.
+     * 
+     * @tparam T The type to be checked.
+     * @return constexpr bool `true` if `T` is derived from `base_state`,
+     * `false` otherwise.
+     */
+    template <typename T>
+    static
+    constexpr bool is_valid_state() {
+      return std::is_base_of<base_state, T>::value;
+    }
+
+#endif /* __cplusplus >= 201402L */
+  
     /**
      * @brief Provides a pointer to an object of requested state class.
      * 
@@ -518,84 +596,6 @@ namespace cfsm {
     base_state* allocate_state() {
       return new new_state();
     }
-  
-    /* Ensure the given state is valid */
-
-#if __cplusplus >= 201402L
-
-    /**
-     * @brief Checks if a type is derived from a base class.
-     * 
-     * This struct evaluates whether a given type `derived` is derived from the
-     * specified base class `base`.
-     * 
-     * @tparam base The base class to check against.
-     * @tparam derived The type to check if it's derived from `base`.
-     */
-    template <typename base, typename derived>
-    struct is_base_of_v {
-      /**
-       * @brief The boolean result indicating whether `derived` is derived from
-       * `base`.
-       */
-      static constexpr bool value = std::is_base_of<base, derived>::value;
-    };
-  
-    /**
-     * @brief Checks if all provided types are derived from the base class.
-     * 
-     * This structure checks if a variadic list of `derived` types are all
-     * derived from the specified base class `base` using conjunction.
-     * 
-     * @tparam base The base class to check against.
-     * @tparam derived The variadic template list of types to check.
-     */
-    template <typename base, typename... derived>
-    struct are_valid_states {
-      /**
-       * @brief The boolean result indicating whether all `derived` types are
-       * derived from `base`.
-       */
-      static constexpr bool value =
-        conjunction_v<is_base_of_v<base, derived>...>;
-    };
-  
-    /**
-     * @brief Checks if a given type matches any type in the list of valid
-     * states.
-     * 
-     * This static function evaluates whether the given type `T` matches
-     * any of the valid states in a predefined list of types.
-     * 
-     * @tparam T The type to be checked against valid states.
-     * @return constexpr bool `true` if `T` matches any of the valid states,
-     * `false` otherwise.
-     */
-    template <typename T>
-    static
-    constexpr bool is_valid_state() {
-      return disjunction_v<std::is_same<T, states>...>;
-    }
-
-#else /* __cplusplus >= 201402L */
-
-    /**
-     * @brief Checks if a given type is derived from a base state.
-     * 
-     * This static function evaluates whether the given type `T` is derived
-     * from the predefined `base_state` type.
-     * 
-     * @tparam T The type to be checked.
-     * @return constexpr bool `true` if `T` is derived from `base_state`,
-     * `false` otherwise.
-     */
-    template <typename T>
-    static
-    constexpr bool is_valid_state() {
-      return std::is_base_of<base_state, T>::value;
-    }
-
-#endif /* __cplusplus >= 201402L */
 
     /**
      * @brief Free the current state object.

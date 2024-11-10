@@ -5,7 +5,7 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <smbuilder.hpp>
+#include <cfsm.hpp>
 
 /* ANSI escape codes */
 #define ANSI_FG_RED     "\x1b[31m"

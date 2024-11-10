@@ -1,5 +1,5 @@
 #include <iostream>
-#include <smbuilder.hpp>
+#include <cfsm.hpp>
 
 using namespace cfsm;
 

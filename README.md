@@ -6,7 +6,7 @@
 
 C++11, C++14, C++17, C++20
 
-Browse [smbuilder.hpp](https://github.com/notweerdmonk/cfsm/blob/master/smbuilder.hpp)
+Browse [cfsm.hpp](https://github.com/notweerdmonk/cfsm/blob/master/cfsm.hpp)
 
 #### Static disposition
 States and transitions between them must be known at compile-time. The
@@ -14,7 +14,7 @@ library uses templates to implement state transitions.
 
 #### States
 All user defined states which are represented by classes should inherit from the
-base `state` class provided in `smbuilder.hpp`. The base class provides
+base `state` class provided in `cfsm.hpp`. The base class provides
 `on_entry` and `on_exit` member functions which are called on entry to state and
 exit from the state respectively. These pure virtual member functions shall be
 overriden in the user defined classes.
@@ -333,4 +333,4 @@ state_machine<
 ```
 
 
-Browse [simple.cc](https://github.com/notweerdmonk/cfsm/blob/master/examples/simple.cc)
+Browse [simple.cc](https://github.com/notweerdmonk/cfsm/blob/master/simple.cc)

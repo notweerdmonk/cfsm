@@ -1,12 +1,14 @@
+SHELL := /bin/bash
+
 ifeq ($(CPP_VERSION),)
-CPP_VERSION := c++17
+CPP_VERSION := c++2a
 endif
 
 ifeq ($(INCLUDE_DIR),)
 INCLUDE_DIR := ..
 endif
 
-HEADER_FILES := smbuilder.hpp
+HEADER_FILES := cfsm.hpp
 HEADER_FILES := $(foreach header, $(HEADER_FILES), $(INCLUDE_DIR)/$(header))
 
 INCLUDE_FLAGS := $(foreach include_dir, $(INCLUDE_DIR), -I$(include_dir))
