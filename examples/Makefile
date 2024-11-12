@@ -16,7 +16,7 @@ INCLUDE_FLAGS := $(foreach include_dir, $(INCLUDE_DIR), -I$(include_dir))
 LIBS := pthread
 LD_FLAGS := $(foreach lib, $(LIBS), -l$(lib))
 
-SRCS := simple.cc trafficlights.cc
+SRCS := simple.cc trafficlights.cc benchmark.cc
 
 OBJECTS := $(SRCS:.cc=.o)
 
