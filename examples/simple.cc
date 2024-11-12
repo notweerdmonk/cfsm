@@ -101,18 +101,22 @@ public:
 
 /* Static class members */
 /*
- * Notice that alloc_type::LAZY is used for the template specialization of
- * state_machine::gen_type_id while generating type identifiers for derived
- * state classes, but the same state classes are used for all types of
- * allocation schemes. This works because of the uniqueness of type identifiers
- * across different allocation schemes, i.e. the same indices are used for each
- * state object in both externally and internally managed arrays. The
- * differentiation in terms of the allocation type template parameter exists to
- * enable different kinds of derived states classes, which may be based on types
- * of allocation schemes, to have different type identifier functions. Care not
- * to mix allocation scheme types while generating type identifiers for a
- * particular kind of state classes.
+ * The template specialization of state_machine::gen_type_id uses
+ * alloc_type::LAZY for generating type identifiers for derived state classes.
+ * This approach ensures that the same state classes are used regardless of the
+ * allocation scheme. The key point is that type identifiers remain consistent
+ * (or identical) across different allocation schemes, meaning that the indices
+ * used for state objects are the same in both externally and internally managed
+ * arrays.
+ *
+ * The differentiation between allocation schemes exists to allow for different
+ * allocation behaviors, but it does not affect the generation of type
+ * identifiers for the state classes themselves. Care should be taken to avoid
+ * mixing allocation schemes when generating type identifiers, as this could
+ * lead to inconsistencies in the mapping between state objects and their
+ * identifiers.
  */
+
 #if __cplusplus >= 201402L
 const std::size_t state_1::type_id_ =
   state_machine<
