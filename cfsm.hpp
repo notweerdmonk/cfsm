@@ -116,7 +116,6 @@
  */
 
 #include <type_traits>
-#include <functional>
 #include <sstream>
 #include <cassert>
 
@@ -427,7 +426,7 @@ namespace cfsm {
        */
       struct internal_state_pool {
         private:
-        alloc_base_state **pool_ptr;
+        alloc_base_state *pool_ptr[sizeof...(states)];
 
         public:
         /**
@@ -437,8 +436,10 @@ namespace cfsm {
          * each state type provided in the `states` parameter pack.
          */
         internal_state_pool() {
-          static alloc_base_state *pool_[sizeof...(states)] = { new states... };
-          pool_ptr = reinterpret_cast<alloc_base_state**>(pool_);
+          alloc_base_state *pool_[sizeof...(states)] = { new states... };
+          for (std::size_t i = 0; i < sizeof...(states); ++i) {
+            pool_ptr[i] = pool_[i];
+          }
         }
 
         /**
@@ -490,6 +491,17 @@ namespace cfsm {
 
 #if __cplusplus >= 201402L
 
+    private:
+      static
+      internal_state_pool*& get_pool() {
+        static internal_state_pool *pool_ = nullptr;
+        if (!pool_) {
+          pool_ = new internal_state_pool;
+        }
+        return pool_;
+      }
+
+    public:
       /**
        * @brief Provides a pointer to an object of requested state class from
        * internally managed array of pointers.
@@ -507,8 +519,27 @@ namespace cfsm {
        */
       static
       alloc_base_state* state(const std::size_t type_id) {
-        static internal_state_pool pool_;
-        return type_id < size ? pool_.pool()[type_id] : nullptr;
+        internal_state_pool *pool_ = get_pool();
+        return pool_ && type_id < size ? pool_->pool()[type_id] : nullptr;
+      }
+
+      template <
+        enum alloc_type type_ = type,
+        typename std::enable_if<type_ == alloc_type::INTERNAL, int>::type = 0
+      >
+      static
+      void delete_pool() {
+        internal_state_pool *&pool_ = get_pool();
+        pool_ ? delete pool_ : (void)0;
+        pool_ = nullptr;
+      }
+
+      template <
+        enum alloc_type type_ = type,
+        typename std::enable_if<type_ != alloc_type::INTERNAL, int>::type = 0
+      >
+      static
+      void delete_pool() {
       }
 
 #endif /* __cplusplus >= 201402L */
@@ -554,7 +585,7 @@ namespace cfsm {
 
     /**
      * @brief Functon template to fetch a pointer to an object of requested
-     * state class, from an internall managed array of base state class
+     * state class, from an internally managed array of base state class
      * pointers.
      *
      * This function is a wrapper over the actual implementation.
@@ -738,6 +769,11 @@ namespace cfsm {
       p_current_state->on_exit(dataptr);
 
       delete_current_state();
+
+#if __cplusplus >= 201402L
+      state_allocator<cfsm::state, sizeof...(states)>::delete_pool();
+#endif
+
     }
 
     /**
