@@ -59,10 +59,10 @@
  * source state class and target state class respectively.
  *
  * User defined template specializations should provide two members. First,
- * a static constexpr bool member variable named "exists" which should be set
- * as "true"; an helper macro "TRANSITION_EXISTS" is provided for this
- * purpose. Second, an implementation of the "operator()" function, the
- * call operator overload, which returns void and takes a void pointer as its
+ * a static constexpr const bool member variable named "exists" which should be
+ * set as "true"; an helper macro "TRANSITION_EXISTS" is provided for this
+ * purpose. Second, an implementation of the "operator()" function, the call
+ * operator overload, which returns void and takes a void pointer as its
  * argument. This function shall be called on a valid transition (source and
  * target states are valid classes and the template specialization of
  * "transition" struct for source and target state exists), triggered by
@@ -88,7 +88,7 @@
  * used by the state machine. The "state_pool" template parameter shall be an
  * array of pointers of the base "state" class, having size equal to the number
  * of states. The array is indexed into by the type identifiers of respective
- * state classes enabling contant time access. Base class pointers should point
+ * state classes enabling constant time access. Base class pointers should point
  * to objects of derived state classes. Memory for these derived state class
  * objects shall be managed by user.
  *
@@ -212,15 +212,15 @@ namespace cfsm {
   template <typename from_state, typename to_state>
   struct transition {
     /**
-     * @brief Static contant bool member variable which indicates a valid
+     * @brief Static constant bool member variable which indicates a valid
      * transition between states, if its value is `true`.
      */
-    static constexpr bool exists = false;
+    static constexpr const bool exists = false;
 
     /**
      * @brief Helper macro to define "exists" static member variable as true.
      */
-    #define TRANSITION_EXISTS static constexpr bool exists = true
+    #define TRANSITION_EXISTS static constexpr const bool exists = true
 
     /**
      * @brief Functor call operator for the transition.
