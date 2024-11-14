@@ -294,7 +294,7 @@ namespace cfsm {
    */
   template <
     typename base_state,
-    const enum alloc_type type = alloc_type::LAZY,
+    enum alloc_type type = alloc_type::LAZY,
     base_state* state_pool[] = nullptr,
     typename... states
   >
@@ -315,9 +315,9 @@ namespace cfsm {
    */
   template <
     typename base_state,
-    const enum alloc_type type = alloc_type::LAZY,
+    enum alloc_type type = alloc_type::LAZY,
     base_state* state_pool[] = nullptr,
-    const std::size_t state_count = 0
+    std::size_t state_count = 0
   >
 
 #endif /* __cplusplus >= 201402L */
@@ -413,7 +413,7 @@ namespace cfsm {
      * @tparam alloc_base_state The base state class.
      * @tparam size The size of the state object pointer array.
      */
-    template <typename alloc_base_state, const std::size_t size = 0>
+    template <typename alloc_base_state, std::size_t size = 0>
     struct state_allocator {
       private:
 
@@ -559,7 +559,7 @@ namespace cfsm {
      */
     template <
       typename new_state,
-      const enum alloc_type type_ = type,
+      enum alloc_type type_ = type,
       typename std::enable_if<type_ == alloc_type::PREALLOCED, int>::type = 0
     >
     base_state* allocate_state() {
@@ -597,7 +597,7 @@ namespace cfsm {
      */
     template <
       typename new_state,
-      const enum alloc_type type_ = type,
+      enum alloc_type type_ = type,
       typename std::enable_if<type_ == alloc_type::INTERNAL, int>::type = 0
     >
     base_state* allocate_state() {
@@ -620,7 +620,7 @@ namespace cfsm {
      */
     template <
       typename new_state,
-      const enum alloc_type type_ = type,
+      enum alloc_type type_ = type,
       typename std::enable_if<type_ == alloc_type::LAZY, int>::type = 0
     >
     base_state* allocate_state() {
@@ -942,7 +942,7 @@ namespace cfsm {
   template <
     typename base_state,
     base_state* state_pool[] = nullptr,
-    const std::size_t state_count = 0
+    std::size_t state_count = 0
   >
   using state_machine_lazy = state_machine<
     base_state,
@@ -962,7 +962,7 @@ namespace cfsm {
   template <
     typename base_state,
     base_state* state_pool[] = nullptr,
-    const std::size_t state_count = 0
+    std::size_t state_count = 0
   >
   using state_machine_ext = state_machine<
     base_state,
@@ -982,7 +982,7 @@ namespace cfsm {
   template <
     typename base_state,
     base_state* state_pool[] = nullptr,
-    const std::size_t state_count = 0
+    std::size_t state_count = 0
   >
   using state_machine_int = state_machine<
     base_state,
