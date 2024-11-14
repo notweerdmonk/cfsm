@@ -171,6 +171,7 @@ namespace cfsm {
    * state machine enters or exits that state respectively.
    */
   class state {
+
   public:
     /**
      * @brief Called when the state machine enters the state.
@@ -322,6 +323,7 @@ namespace cfsm {
 #endif /* __cplusplus >= 201402L */
 
   class state_machine {
+
     base_state* p_current_state = nullptr; ///< Pointer to the current state object.
   
     /* Ensure the given state is valid */
@@ -771,7 +773,9 @@ namespace cfsm {
       delete_current_state();
 
 #if __cplusplus >= 201402L
+
       state_allocator<cfsm::state, sizeof...(states)>::delete_pool();
+
 #endif
 
     }
@@ -853,7 +857,15 @@ namespace cfsm {
       }
   
       delete_current_state();
+
+#if __cplusplus >= 201402L
+
+      state_allocator<cfsm::state, sizeof...(states)>::delete_pool();
+
+#endif
+
     }
+
   };
 
   /* State machine type aliases */
