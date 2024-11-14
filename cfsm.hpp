@@ -497,10 +497,7 @@ namespace cfsm {
       static
       internal_state_pool*& get_pool() {
         static internal_state_pool *pool_ = nullptr;
-        if (!pool_) {
-          pool_ = new internal_state_pool;
-        }
-        return pool_;
+        return !pool_ ? (pool_ = new internal_state_pool) : pool_;
       }
 
     public:
