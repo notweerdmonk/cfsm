@@ -415,6 +415,7 @@ namespace cfsm {
      */
     template <typename alloc_base_state, std::size_t size = 0>
     struct state_allocator {
+
       private:
 
 #if __cplusplus >= 201402L
@@ -427,10 +428,9 @@ namespace cfsm {
        * cleanup of dynamically allocated objects.
        */
       struct internal_state_pool {
-        private:
-        alloc_base_state *pool_ptr[sizeof...(states)];
 
-        public:
+        alloc_base_state *pool[sizeof...(states)];
+
         /**
          * @brief Constructs an internal state pool and allocates state objects.
          *
@@ -440,7 +440,7 @@ namespace cfsm {
         internal_state_pool() {
           alloc_base_state *pool_[sizeof...(states)] = { new states... };
           for (std::size_t i = 0; i < sizeof...(states); ++i) {
-            pool_ptr[i] = pool_[i];
+            pool[i] = pool_[i];
           }
         }
 
@@ -451,19 +451,10 @@ namespace cfsm {
          */
         ~internal_state_pool() {
           for (std::size_t i = 0; i < sizeof...(states); ++i) {
-            delete pool_ptr[i];
+            delete pool[i];
           }
         }
 
-        /**
-         * Provides access to the internal pool of state objects.
-         *
-         * @return A pointer to the array of `alloc_base_state` pointers to
-         * derived state objects.
-         */
-        alloc_base_state** pool() {
-          return pool_ptr;
-        }
       };
 
 #endif /* __cplusplus >= 201402L */
@@ -495,9 +486,10 @@ namespace cfsm {
 
     private:
       static
-      internal_state_pool*& get_pool() {
-        static internal_state_pool *pool_ = nullptr;
-        return !pool_ ? (pool_ = new internal_state_pool) : pool_;
+      internal_state_pool*& get_state_pool() {
+        static internal_state_pool *p_statepool_ = nullptr;
+        return !p_statepool_ ? (p_statepool_ = new internal_state_pool)
+          : p_statepool_;
       }
 
     public:
@@ -518,8 +510,9 @@ namespace cfsm {
        */
       static
       alloc_base_state* state(const std::size_t type_id) {
-        internal_state_pool *pool_ = get_pool();
-        return pool_ && type_id < size ? pool_->pool()[type_id] : nullptr;
+        internal_state_pool *p_statepool = get_state_pool();
+        return p_statepool && type_id < size ? p_statepool->pool[type_id]
+          : nullptr;
       }
 
       template <
@@ -527,10 +520,10 @@ namespace cfsm {
         typename std::enable_if<type_ == alloc_type::INTERNAL, int>::type = 0
       >
       static
-      void delete_pool() {
-        internal_state_pool *&pool_ = get_pool();
-        pool_ ? delete pool_ : (void)0;
-        pool_ = nullptr;
+      void delete_state_pool() {
+        internal_state_pool *&statepool = get_state_pool();
+        statepool ? delete statepool : (void)0;
+        statepool = nullptr;
       }
 
       template <
@@ -538,7 +531,7 @@ namespace cfsm {
         typename std::enable_if<type_ != alloc_type::INTERNAL, int>::type = 0
       >
       static
-      void delete_pool() {
+      void delete_state_pool() {
       }
 
 #endif /* __cplusplus >= 201402L */
@@ -771,7 +764,7 @@ namespace cfsm {
 
 #if __cplusplus >= 201402L
 
-      state_allocator<cfsm::state, sizeof...(states)>::delete_pool();
+      state_allocator<cfsm::state, sizeof...(states)>::delete_state_pool();
 
 #endif
 
@@ -857,7 +850,7 @@ namespace cfsm {
 
 #if __cplusplus >= 201402L
 
-      state_allocator<cfsm::state, sizeof...(states)>::delete_pool();
+      state_allocator<cfsm::state, sizeof...(states)>::delete_state_pool();
 
 #endif
 
