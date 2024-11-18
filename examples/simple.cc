@@ -366,6 +366,41 @@ void test_preallocated_internal() {
 #endif
 }
 
+void test_preallocated_internal_static() {
+  /* Use internally allocated state objects in static array */
+#if __cplusplus >= 201402L
+  state_machine<
+    state,
+    alloc_type::STATIC,
+    nullptr,
+    state_1,
+    state_2
+  > fsm;
+  //state_machine_static<
+  //  state,
+  //  nullptr,
+  //  state_1,
+  //  state_2
+  //> fsm;
+
+  fsm.start<state_1>(nullptr);
+
+  /* Check if state is state_1 */
+  if (fsm.state<state_1>() != nullptr) {
+    fsm.transition<state_1, state_2>(nullptr);
+  }
+
+  fsm.transition<state_2, state_1>(nullptr);
+
+  fsm.stop(nullptr);
+
+#else
+#warning Cannot test internal statically preallocated storage for versions below C++14
+  std::cerr << "Cannot test internal statically preallocated storage for"
+    "versions below C++14\n";
+#endif
+}
+
 void test_serialization() {
 #if __cplusplus >= 201402L
   //state_machine<
@@ -428,11 +463,14 @@ int main() {
   std::cout << "\nPreallocated test 1: dynamic storage\n\n";
   test_preallocated_dynamic();
 
-  std::cout << "\nSerialization test\n\n";
-  test_serialization();
-
   std::cout << "\nInternally allocated state objects test\n\n";
   test_preallocated_internal();
+
+  std::cout << "\nInternally allocated state objects in static array test\n\n";
+  test_preallocated_internal_static();
+
+  std::cout << "\nSerialization test\n\n";
+  test_serialization();
 
   return 0;
 }

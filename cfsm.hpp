@@ -162,7 +162,6 @@ namespace cfsm {
 
 #endif /* __cplusplus < 201703L */
 
-  /* Base class for states, all states should inherit from this */
   /**
    * @brief Abstract base class representing a state in the state machine.
    * 
@@ -173,6 +172,7 @@ namespace cfsm {
   class state {
 
   public:
+
     /**
      * @brief Called when the state machine enters the state.
      * 
@@ -273,7 +273,8 @@ namespace cfsm {
   enum class alloc_type {
     LAZY,         ///< Lazily allocated state objects
     PREALLOCED,   ///< User managed preallocated state objects array
-    INTERNAL      ///< Self managed preallocated state objects array
+    INTERNAL,     ///< Self managed preallocated state objects array
+    STATIC        ///< Self managed static preallocated state objects array
   };
 
   /* Finite state machine class */
@@ -460,6 +461,7 @@ namespace cfsm {
 #endif /* __cplusplus >= 201402L */
 
       public:
+
       /**
        * @brief Provides a pointer to an object of requested state class from
        * given array of pointers.
@@ -485,6 +487,7 @@ namespace cfsm {
 #if __cplusplus >= 201402L
 
     private:
+
       static
       internal_state_pool*& get_state_pool() {
         static internal_state_pool *p_statepool_ = nullptr;
@@ -493,6 +496,7 @@ namespace cfsm {
       }
 
     public:
+
       /**
        * @brief Provides a pointer to an object of requested state class from
        * internally managed array of pointers.
@@ -508,11 +512,25 @@ namespace cfsm {
        * @return A pointer to derived state class object of the base state
        * class.
        */
+      template <
+        enum alloc_type type_ = type,
+        typename std::enable_if<type_ == alloc_type::INTERNAL, int>::type = 0
+      >
       static
       alloc_base_state* state(const std::size_t type_id) {
         internal_state_pool *p_statepool = get_state_pool();
         return p_statepool && type_id < size ? p_statepool->pool[type_id]
           : nullptr;
+      }
+
+      template <
+        enum alloc_type type_ = type,
+        typename std::enable_if<type_ == alloc_type::STATIC, int>::type = 0
+      >
+      static
+      alloc_base_state* state(const std::size_t type_id) {
+        static internal_state_pool p_statepool_;
+        return type_id < size ? p_statepool_.pool[type_id] : nullptr;
       }
 
       template <
@@ -591,7 +609,10 @@ namespace cfsm {
     template <
       typename new_state,
       enum alloc_type type_ = type,
-      typename std::enable_if<type_ == alloc_type::INTERNAL, int>::type = 0
+      typename std::enable_if <
+        type_ == alloc_type::INTERNAL || type_ == alloc_type::STATIC,
+        int
+      >::type = 0
     >
     base_state* allocate_state() {
       return state_allocator<cfsm::state, sizeof...(states)>
@@ -633,6 +654,7 @@ namespace cfsm {
     }
 
   public:
+
     /**
      * @brief Returns a non-negative integer of `std::size_t` type.
      *
@@ -922,6 +944,18 @@ namespace cfsm {
     states...
   >;
 
+  template <
+    typename base_state,
+    base_state* state_pool[] = nullptr,
+    typename... states
+  >
+  using state_machine_static = state_machine<
+    base_state,
+    alloc_type::STATIC,
+    state_pool,
+    states...
+  >;
+
 #else /* __cplusplus >= 201402L */
 
   /**
@@ -980,6 +1014,18 @@ namespace cfsm {
   using state_machine_int = state_machine<
     base_state,
     alloc_type::INTERNAL,
+    state_pool,
+    state_count
+  >;
+
+  template <
+    typename base_state,
+    base_state* state_pool[] = nullptr,
+    std::size_t state_count = 0
+  >
+  using state_machine_static = state_machine<
+    base_state,
+    alloc_type::STATIC,
     state_pool,
     state_count
   >;

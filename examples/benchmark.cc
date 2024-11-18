@@ -170,6 +170,42 @@ void benchmark_state_machine_internal(int num_transitions) {
     << 1000000 * elapsed.count() / num_transitions << " microseconds\n";
 }
 
+void benchmark_state_machine_internal_static(int num_transitions) {
+  std::cout << "Internal preallocation with objects in static array\n";
+
+  state_machine<state, alloc_type::STATIC, nullptr, state_a, state_b> fsm;
+
+  fsm.start<state_a>(nullptr);
+
+  /* Warmup */
+  for (int i = 0; i < num_transitions; ++i) {
+    if (i % 2 == 0) {
+      fsm.transition<state_a, state_b>(nullptr);
+    } else {
+      fsm.transition<state_b, state_a>(nullptr);
+    }
+  }
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+
+  for (int i = 0; i < num_transitions; ++i) {
+    if (i % 2 == 0) {
+      fsm.transition<state_a, state_b>(nullptr);
+    } else {
+      fsm.transition<state_b, state_a>(nullptr);
+    }
+  }
+
+  auto end_time = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed = end_time - start_time;
+
+  std::cout << num_transitions << " transitions took "
+    << elapsed.count() << " seconds\n";
+
+  std::cout << "Avg time per transition: "
+    << 1000000 * elapsed.count() / num_transitions << " microseconds\n";
+}
+
 void benchmark_state_machine_external(int num_transitions) {
   std::cout << "External preallocation\n";
 
@@ -240,6 +276,7 @@ int main() {
   benchmark_state_machine_lazy(8000000);
   benchmark_state_machine_external(8000000);
   benchmark_state_machine_internal(8000000);
+  benchmark_state_machine_internal_static(8000000);
 
   return 0;
 }
