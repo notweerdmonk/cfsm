@@ -210,28 +210,36 @@ void test_lazy_allocator() {
   /* Start in state_a; on_entry of initial state will get called */
   fsm.start<state_a>(nullptr);
 
+  /* Check if state is state_a */
+  assert((fsm.state<state_a>() != nullptr));
+
   /* Transition to state_b */
   std::cout << "* State A to state B\n";
   assert((fsm.transition<state_a, state_b>(nullptr)));
 
+  /* Check if state is state_b */
+  assert((fsm.state<state_b>() != nullptr));
+
   /* Transition from state_a to state_c - will fail */
   std::cout << "* State A to state C - will fail\n";
+  assert((fsm.transition<state_a, state_c>(nullptr) == false));
 
-  /* Check if state is state_a */
-  if (fsm.state<state_a>() != nullptr) {
-    assert((fsm.transition<state_a, state_c>(nullptr) == false));
-  } else {
-    std::cerr << "State machine is not in state A\n";
-    return;
-  }
+  /* Check if state is state_b */
+  assert((fsm.state<state_b>() != nullptr));
 
   /* Transition back to state_a */
   std::cout << "* State B to state A\n";
   assert((fsm.transition<state_b, state_a>(nullptr)));
 
+  /* Check if state is state_a */
+  assert((fsm.state<state_a>() != nullptr));
+
   /* Transition to state_c */
   std::cout << "* State A to state C\n";
   assert((fsm.transition<state_a, state_c>(nullptr)));
+
+  /* Check if state is state_c */
+  assert((fsm.state<state_c>() != nullptr));
 
   /* Transition from state_c to state_a - compile error */
   //fsm.transition<state_c, state_a>();
@@ -273,11 +281,11 @@ void test_preallocated_static() {
   fsm.start<state_1>(nullptr);
 
   /* Check if state is state_1 */
-  if (fsm.state<state_1>() != nullptr) {
-    fsm.transition<state_1, state_2>(nullptr);
-  }
+  assert(fsm.state<state_1>() != nullptr);
 
-  fsm.transition<state_2, state_1>(nullptr);
+  assert((fsm.transition<state_1, state_2>(nullptr)));
+
+  assert((fsm.transition<state_2, state_1>(nullptr)));
 
   fsm.stop(nullptr);
 }
@@ -319,11 +327,11 @@ void test_preallocated_dynamic() {
   fsm.start<state_1>(nullptr);
 
   /* Check if state is state_1 */
-  if (fsm.state<state_1>() != nullptr) {
-    fsm.transition<state_1, state_2>(nullptr);
-  }
+  assert(fsm.state<state_1>() != nullptr);
 
-  fsm.transition<state_2, state_1>(nullptr);
+  assert((fsm.transition<state_1, state_2>(nullptr)));
+
+  assert((fsm.transition<state_2, state_1>(nullptr)));
 
   fsm.stop(nullptr);
 
@@ -351,11 +359,11 @@ void test_preallocated_internal() {
   fsm.start<state_1>(nullptr);
 
   /* Check if state is state_1 */
-  if (fsm.state<state_1>() != nullptr) {
-    fsm.transition<state_1, state_2>(nullptr);
-  }
+  assert(fsm.state<state_1>() != nullptr);
 
-  fsm.transition<state_2, state_1>(nullptr);
+  assert((fsm.transition<state_1, state_2>(nullptr)));
+
+  assert((fsm.transition<state_2, state_1>(nullptr)));
 
   fsm.stop(nullptr);
 
@@ -386,11 +394,11 @@ void test_preallocated_internal_static() {
   fsm.start<state_1>(nullptr);
 
   /* Check if state is state_1 */
-  if (fsm.state<state_1>() != nullptr) {
-    fsm.transition<state_1, state_2>(nullptr);
-  }
+  assert(fsm.state<state_1>() != nullptr);
 
-  fsm.transition<state_2, state_1>(nullptr);
+  assert((fsm.transition<state_1, state_2>(nullptr)));
+
+  assert((fsm.transition<state_2, state_1>(nullptr)));
 
   fsm.stop(nullptr);
 
@@ -434,9 +442,9 @@ void test_serialization() {
   fsm.start<state_1>(nullptr);
 
   /* Check if state is state_1 */
-  if (fsm.state<state_1>() != nullptr) {
-    fsm.transition<state_1, state_2>(nullptr);
-  }
+  assert(fsm.state<state_1>() != nullptr);
+  
+  assert((fsm.transition<state_1, state_2>(nullptr)));
 
   std::cout << "Saving state machine\n";
   long serialized_data;
@@ -448,7 +456,10 @@ void test_serialization() {
   assert(fsm_copy.load(reinterpret_cast<char*>(&serialized_data),
       sizeof(serialized_data)) == sizeof(serialized_data));
 
-  fsm_copy.transition<state_2, state_1>(nullptr);
+  /* Check if state is state_2 */
+  assert((fsm_copy.state<state_2>() != nullptr));
+
+  assert((fsm_copy.transition<state_2, state_1>(nullptr)));
 
   fsm_copy.stop(nullptr);
 }
