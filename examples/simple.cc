@@ -43,6 +43,13 @@ TRANSITION_BEGIN(state_a, state_b)
   }
 TRANSITION_END;
 
+/* Specialize transition for state_a -> state_a */
+TRANSITION_BEGIN(state_a, state_a)
+  void operator()(void *dataptr) {
+    std::cout << "Transitioning from state A back to state A\n";
+  }
+TRANSITION_END;
+
 /* Specialize transition for state_b -> state_a */
 TRANSITION_BEGIN(state_b, state_a)
   void operator()(void *dataptr) const {
@@ -209,6 +216,12 @@ void test_lazy_allocator() {
 
   /* Start in state_a; on_entry of initial state will get called */
   fsm.start<state_a>(nullptr);
+
+  /* Check if state is state_a */
+  assert((fsm.state<state_a>() != nullptr));
+
+  /* Cyclic transition from state_a back to state_a */
+  assert((fsm.transition<state_a, state_a>(nullptr)));
 
   /* Check if state is state_a */
   assert((fsm.state<state_a>() != nullptr));
