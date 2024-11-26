@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 ifeq ($(CPP_VERSION),)
-CPP_VERSION := c++2a
+CPP_VERSION := c++23
 endif
 
 ifeq ($(INCLUDE_DIR),)
@@ -23,6 +23,8 @@ OBJECTS := $(SRCS:.cc=.o)
 TARGETS := $(SRCS:.cc=)
 
 all: $(TARGETS)
+
+$(OBJECTS): $(HEADER_FILES)
 
 $(TARGETS): $(OBJECTS)
 
