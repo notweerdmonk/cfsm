@@ -737,6 +737,7 @@ namespace cfsm {
     bool transition(void *dataptr) {
       static_assert(is_valid_state<from_state>(), "Invalid source state");
       static_assert(is_valid_state<to_state>(), "Invalid target state");
+
       if (dynamic_cast<from_state*>(p_current_state) == nullptr) {
         return false;
       }
@@ -786,6 +787,11 @@ namespace cfsm {
 
 #if __cplusplus >= 201402L
 
+      /*
+       * Calling stop() or dtor after saving the state machine will never call
+       * delete_state_pool(). The internal state pool will remain valid in
+       * memory till an operable state machine instance calls stop() or dtor.
+       */
       state_allocator<cfsm::state, sizeof...(states)>::delete_state_pool();
 
 #endif
@@ -872,6 +878,11 @@ namespace cfsm {
 
 #if __cplusplus >= 201402L
 
+      /*
+       * Calling stop() or dtor after saving the state machine will never call
+       * delete_state_pool(). The internal state pool will remain valid in
+       * memory till an operable state machine instance calls stop() or dtor.
+       */
       state_allocator<cfsm::state, sizeof...(states)>::delete_state_pool();
 
 #endif

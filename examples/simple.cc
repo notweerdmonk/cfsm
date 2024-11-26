@@ -430,13 +430,13 @@ void test_serialization() {
   //  nullptr,
   //  state_1,
   //  state_2
-  //> fsm, fsm_copy;
+  //> fsm_copy;
   state_machine_int<
     state,
     nullptr,
     state_1,
     state_2
-  > fsm, fsm_copy;
+  > fsm_copy;
 #else
   //state_machine<
   //  state,
@@ -444,26 +444,60 @@ void test_serialization() {
   //  nullptr,
   //  state_1,
   //  state_2
-  //> fsm, fsm_copy;
+  //> fsm_copy;
   state_machine_lazy<
     state,
     nullptr,
     2
-  > fsm, fsm_copy;
+  > fsm_copy;
 #endif
 
-  fsm.start<state_1>(nullptr);
-
-  /* Check if state is state_1 */
-  assert(fsm.state<state_1>() != nullptr);
-  
-  assert((fsm.transition<state_1, state_2>(nullptr)));
-
-  std::cout << "Saving state machine\n";
   long serialized_data;
-  /* original state machine is unusable until load is called */
-  assert(fsm.save(reinterpret_cast<char*>(&serialized_data),
-      sizeof(serialized_data)) == sizeof(serialized_data));
+
+  {
+#if __cplusplus >= 201402L
+    //state_machine<
+    //  state,
+    //  alloc_type::INTERNAL,
+    //  nullptr,
+    //  state_1,
+    //  state_2
+    //> fsm;
+    state_machine_int<
+      state,
+      nullptr,
+      state_1,
+      state_2
+    > fsm;
+#else
+    //state_machine<
+    //  state,
+    //  alloc_type::LAZY,
+    //  nullptr,
+    //  state_1,
+    //  state_2
+    //> fsm;
+    state_machine_lazy<
+      state,
+      nullptr,
+      2
+    > fsm;
+#endif
+
+    fsm.start<state_1>(nullptr);
+
+    /* Check if state is state_1 */
+    assert(fsm.state<state_1>() != nullptr);
+    
+    assert((fsm.transition<state_1, state_2>(nullptr)));
+
+    std::cout << "Saving state machine\n";
+    /* Original state machine is unusable until load is called */
+    assert(fsm.save(reinterpret_cast<char*>(&serialized_data),
+        sizeof(serialized_data)) == sizeof(serialized_data));
+
+    /* Destroy original state machine */
+  }
 
   std::cout << "Loading state machine\n";
   assert(fsm_copy.load(reinterpret_cast<char*>(&serialized_data),
@@ -495,6 +529,7 @@ int main() {
 
   std::cout << "\nSerialization test\n\n";
   test_serialization();
+  std::cout << "test_serialization end\n";
 
   return 0;
 }
