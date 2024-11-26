@@ -101,7 +101,11 @@ static state* state_pool[2] = {
 void benchmark_state_machine_lazy(int num_transitions) {
   std::cout << "Lazy allocation\n";
 
+#if __cplusplus >= 201402L
   state_machine<state, alloc_type::LAZY, nullptr, state_a, state_b> fsm;
+#else
+  state_machine<state, alloc_type::LAZY, nullptr, 2> fsm;
+#endif
 
   fsm.start<state_a>(nullptr);
 
@@ -137,6 +141,7 @@ void benchmark_state_machine_lazy(int num_transitions) {
 void benchmark_state_machine_internal(int num_transitions) {
   std::cout << "Internal preallocation\n";
 
+#if __cplusplus >= 201402L
   state_machine<state, alloc_type::INTERNAL, nullptr, state_a, state_b> fsm;
 
   fsm.start<state_a>(nullptr);
@@ -168,11 +173,20 @@ void benchmark_state_machine_internal(int num_transitions) {
 
   std::cout << "Avg time per transition: "
     << 1000000 * elapsed.count() / num_transitions << " microseconds\n";
+
+#else
+
+#warning Cannot benchmark internal preallocated storage for versions below C++14
+  std::cerr << "Cannot benchmark internal preallocated storage for versions"
+    "below C++14\n";
+#endif
+
 }
 
 void benchmark_state_machine_internal_static(int num_transitions) {
   std::cout << "Internal preallocation with objects in static array\n";
 
+#if __cplusplus >= 201402L
   state_machine<state, alloc_type::STATIC, nullptr, state_a, state_b> fsm;
 
   fsm.start<state_a>(nullptr);
@@ -204,12 +218,25 @@ void benchmark_state_machine_internal_static(int num_transitions) {
 
   std::cout << "Avg time per transition: "
     << 1000000 * elapsed.count() / num_transitions << " microseconds\n";
+
+#else
+
+#warning Cannot test internal statically preallocated storage for versions below C++14
+  std::cerr << "Cannot test internal statically preallocated storage for"
+    "versions below C++14\n";
+
+#endif
+
 }
 
 void benchmark_state_machine_external(int num_transitions) {
   std::cout << "External preallocation\n";
 
+#if __cplusplus >= 201402L
   state_machine<state, alloc_type::PREALLOCED, state_pool, state_a, state_b> fsm;
+#else
+  state_machine<state, alloc_type::PREALLOCED, state_pool, 2> fsm;
+#endif
 
   fsm.start<state_a>(nullptr);
 
