@@ -59,7 +59,7 @@
  * source state class and target state class respectively.
  *
  * User defined template specializations should provide two members. First,
- * a static constexpr const bool member variable named "exists" which should be
+ * a static constexpr bool member variable named "exists" which should be
  * set as "true"; an helper macro "TRANSITION_EXISTS" is provided for this
  * purpose. Second, an implementation of the "operator()" function, the call
  * operator overload, which returns void and takes a void pointer as its
@@ -216,12 +216,12 @@ namespace cfsm {
      * @brief Static constant bool member variable which indicates a valid
      * transition between states, if its value is `true`.
      */
-    static constexpr const bool exists = false;
+    static constexpr bool exists = false;
 
     /**
      * @brief Helper macro to define "exists" static member variable as true.
      */
-    #define TRANSITION_EXISTS static constexpr const bool exists = true
+    #define TRANSITION_EXISTS static constexpr bool exists = true
 
     /**
      * @brief Functor call operator for the transition.
