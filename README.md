@@ -174,6 +174,46 @@ fsm.stop(nullptr);
 ```
 
 
+#### Concurrency
+
+State machines support concurrent operations. The use of atomic lock flags
+avoids the overhead of mutexes. A single boolean variable provides concurrency
+protection to state machine operations. State machine start/stop operations,
+state transitions and state queries as well as instance destructions are atomic.
+
+```C
+state_machine_lazy<
+  state,
+  nullptr,
+  state_1,
+  state_2
+> fsm;
+
+std::vector<std::thread> threads;
+
+threads.emplace_back(
+    [&fsm] {
+      while (fsm.state<state_1>() == nullptr);
+      assert((fsm.transition<state_1, state_2>(nullptr)));
+    }
+);
+threads.emplace_back(
+    [&fsm] {
+      while (fsm.state<state_2>() == nullptr);
+      assert((fsm.transition<state_2, state_1>(nullptr)));
+    }
+);
+
+fsm.start<state_1>(nullptr);
+
+for (auto &t : threads) {
+  t.join();
+}
+
+fsm.stop(nullptr);
+```
+
+
 #### Save/Load
 State machines can be halted and later resumed. The `state_machine::save`
 member function serializes the state and stores it in a char array. The array
