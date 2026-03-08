@@ -182,6 +182,48 @@ struct cfsm::transition<state_2, state_1> {
   }
 };
 
+#if __cplusplus < 201703L
+
+std::size_t type_id_from_base_pointer(cfsm::state *ptr) {
+  if (!ptr) {
+    return 0;
+  }
+
+  if (dynamic_cast<state_1*>(ptr) != nullptr) {
+    return state_1::type_id();
+  } else if (dynamic_cast<state_2*>(ptr) != nullptr) {
+    return state_2::type_id();
+  }
+
+  return 0;
+}
+
+cfsm::state* base_pointer_from_type_id(std::size_t type_id) {
+  if (type_id == -1) {
+    return nullptr;
+  }
+
+  if (type_id == state_1::type_id()) {
+    return cfsm::state_machine<
+              state,
+              alloc_type::LAZY,
+              nullptr,
+              2
+           >::allocate_state<state_1>();
+  } else if(type_id == state_2::type_id()) {
+    return cfsm::state_machine<
+              state,
+              alloc_type::LAZY,
+              nullptr,
+              2
+           >::allocate_state<state_2>();
+  }
+
+  return nullptr;
+}
+
+#endif /* __cplusplus < 201703L */
+
 /* Static state storage */
 struct _state_storage {
   state_1 s1;
@@ -544,17 +586,16 @@ void test_concurrency_internal_static() {
 #endif
 }
 
-#if 0 /* Disable serialization */
-void test_serialization() {
+void test_serialization_lazy() {
 #if __cplusplus >= 201402L
   //state_machine<
   //  state,
-  //  alloc_type::INTERNAL,
+  //  alloc_type::LAZY,
   //  nullptr,
   //  state_1,
   //  state_2
   //> fsm_copy;
-  state_machine_int<
+  state_machine_lazy<
     state,
     nullptr,
     state_1,
@@ -580,12 +621,12 @@ void test_serialization() {
 #if __cplusplus >= 201402L
     //state_machine<
     //  state,
-    //  alloc_type::INTERNAL,
+    //  alloc_type::LAZY,
     //  nullptr,
     //  state_1,
     //  state_2
     //> fsm;
-    state_machine_int<
+    state_machine_lazy<
       state,
       nullptr,
       state_1,
@@ -614,6 +655,78 @@ void test_serialization() {
 
     std::cout << "Saving state machine\n";
     /* Original state machine is unusable until load is called */
+#if __cplusplus >= 201402L
+    assert(fsm.save(reinterpret_cast<char*>(&serialized_data),
+        sizeof(serialized_data)) == sizeof(serialized_data));
+#else
+    assert(fsm.save(reinterpret_cast<char*>(&serialized_data),
+        sizeof(serialized_data), type_id_from_base_pointer) ==
+        sizeof(serialized_data));
+#endif
+
+    /* Destroy original state machine */
+  }
+
+  std::cout << "Loading state machine\n";
+#if __cplusplus >= 201402L
+  assert(fsm_copy.load(reinterpret_cast<char*>(&serialized_data),
+      sizeof(serialized_data)) == sizeof(serialized_data));
+#else
+  assert(fsm_copy.load(reinterpret_cast<char*>(&serialized_data),
+      sizeof(serialized_data), base_pointer_from_type_id) ==
+      sizeof(serialized_data));
+#endif
+
+  /* Check if state is state_2 */
+  assert((fsm_copy.state<state_2>() != nullptr));
+
+  assert((fsm_copy.transition<state_2, state_1>(nullptr)));
+
+  fsm_copy.stop(nullptr);
+}
+
+void test_serialization_internal() {
+#if __cplusplus >= 201402L
+  //state_machine<
+  //  state,
+  //  alloc_type::INTERNAL,
+  //  nullptr,
+  //  state_1,
+  //  state_2
+  //> fsm_copy;
+  state_machine_int<
+    state,
+    nullptr,
+    state_1,
+    state_2
+  > fsm_copy;
+
+  long serialized_data;
+
+  {
+    //state_machine<
+    //  state,
+    //  alloc_type::INTERNAL,
+    //  nullptr,
+    //  state_1,
+    //  state_2
+    //> fsm;
+    state_machine_int<
+      state,
+      nullptr,
+      state_1,
+      state_2
+    > fsm;
+
+    fsm.start<state_1>(nullptr);
+
+    /* Check if state is state_1 */
+    assert(fsm.state<state_1>() != nullptr);
+    
+    assert((fsm.transition<state_1, state_2>(nullptr)));
+
+    std::cout << "Saving state machine\n";
+    /* Original state machine is unusable until load is called */
     assert(fsm.save(reinterpret_cast<char*>(&serialized_data),
         sizeof(serialized_data)) == sizeof(serialized_data));
 
@@ -630,8 +743,13 @@ void test_serialization() {
   assert((fsm_copy.transition<state_2, state_1>(nullptr)));
 
   fsm_copy.stop(nullptr);
+
+#else
+#warning Cannot test internal preallocated storage for versions below C++14
+  std::cerr << "Cannot test internal preallocated storage for versions below"
+    "C++14\n";
+#endif /* __cplusplus >= 201402L */
 }
-#endif
 
 int main() {
   std::cout << "Lazy allocator test\n\n";
@@ -649,15 +767,17 @@ int main() {
   std::cout << "\nInternally allocated state objects in static array test\n\n";
   test_preallocated_internal_static();
 
-  std::cout << "\nConcurrency Lazy test\n\n";
+  std::cout << "\nConcurrency test with lazy allocater\n\n";
   test_concurrency_lazy();
   std::cout << "test_concurrency_lazy end\n";
 
-#if 0 /* Disable serialization */
-  std::cout << "\nSerialization test\n\n";
-  test_serialization();
-  std::cout << "test_serialization end\n";
-#endif
+  std::cout << "\nSerialization test with lazy allocator\n\n";
+  test_serialization_lazy();
+  std::cout << "test_serialization_lazy end\n";
+
+  std::cout << "\nSerialization test with internally allocated state objects\n\n";
+  test_serialization_internal();
+  std::cout << "test_serialization_internal end\n";
 
   return 0;
 }

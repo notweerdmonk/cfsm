@@ -118,6 +118,7 @@
 #include <type_traits>
 #include <atomic>
 #include <memory>
+#include <functional>
 #include <sstream>
 #include <cassert>
 
@@ -598,6 +599,19 @@ namespace cfsm {
     };
   
     /**
+     * @brief Free the current state object.
+     *
+     * Sets the current state pointer as nullptr;
+     */
+    void delete_current_state() {
+      if (type == alloc_type::LAZY) {
+        p_current_state.reset();
+      }
+      p_current_state = nullptr;
+    }
+
+  public:
+    /**
      * @brief Functon template to fetch a pointer to an object of requested
      * state class, from an array of base state class pointers.
      *
@@ -614,6 +628,7 @@ namespace cfsm {
       enum alloc_type type_ = type,
       typename std::enable_if<type_ == alloc_type::PREALLOCED, int>::type = 0
     >
+    static
     base_state* allocate_state() {
 
 #if __cplusplus >= 201402L
@@ -655,6 +670,7 @@ namespace cfsm {
         int
       >::type = 0
     >
+    static
     base_state* allocate_state() {
       return state_allocator<cfsm::state, sizeof...(states)>
         ::state(new_state::type_id());
@@ -678,23 +694,10 @@ namespace cfsm {
       enum alloc_type type_ = type,
       typename std::enable_if<type_ == alloc_type::LAZY, int>::type = 0
     >
+    static
     base_state* allocate_state() {
       return new new_state();
     }
-
-    /**
-     * @brief Free the current state object.
-     *
-     * Sets the current state pointer as nullptr;
-     */
-    void delete_current_state() {
-      if (type == alloc_type::LAZY) {
-        p_current_state.reset();
-      }
-      p_current_state = nullptr;
-    }
-
-  public:
 
     /**
      * @brief Returns a non-negative integer of `std::size_t` type.
@@ -842,11 +845,6 @@ namespace cfsm {
 
 #if __cplusplus >= 201402L
 
-        /*
-         * Calling stop() or dtor after saving the state machine will never call
-         * delete_state_pool(). The internal state pool will remain valid in
-         * memory till an operable state machine instance calls stop() or dtor.
-         */
         state_allocator<cfsm::state, sizeof...(states)>::delete_state_pool();
 
 #endif
@@ -878,7 +876,27 @@ namespace cfsm {
       return cur_state;
     }
 
-#if 0 /* Disable serialization */
+#if __cplusplus < 201703L
+
+    template<
+      int  = 0
+    >
+    std::size_t type_id_from_base_pointer(base_state_pointer_type ptr) {
+      return -1;
+    }
+
+    template<
+      typename first,
+      typename... rest
+    >
+    std::size_t type_id_from_base_pointer(base_state_pointer_type ptr) {
+      if (dynamic_cast<first*>(ptr) != nullptr) {
+        return first::type_id();
+      }
+      return type_id_from_base_pointer<rest...>(ptr);
+    }
+
+#endif /* __cplusplus < 201703L */
 
     /**
      * @brief Save the state machine's state to memory.
@@ -890,21 +908,81 @@ namespace cfsm {
      * @param pdata Pointer to char array.
      * @param datalen Size of the char array.
      */
+#if __cplusplus < 201402L
+    std::size_t save(
+        char *pdata,
+        std::size_t datalen,
+        std::function<std::size_t(base_state_pointer_type)> func
+    ) {
+#else
     std::size_t save(char *pdata, std::size_t datalen) {
+#endif
       if (!pdata) {
         return 0;
       }
-      if (datalen < sizeof(p_current_state)) {
+      if (datalen < sizeof(std::size_t)) {
         return 0;
       }
 
-      *reinterpret_cast<base_state**>(pdata) = p_current_state.get();
+      base_state_pointer_type p_current_state_raw = p_current_state.get();
 
-      /* To avoid incorrect free in dtor set p_current_state as nullptr */
-      p_current_state = nullptr;
+#if __cplusplus >= 201703L
 
-      return sizeof(p_current_state);
+      std::size_t type_id = -1;
+      ([&] {
+        if (
+            type_id == -1 &&
+            dynamic_cast<states*>(p_current_state_raw) != nullptr
+        ) {
+          type_id = states::type_id();
+        }
+      }(), ...);
+
+#elif __cplusplus >= 201402L
+
+      std::size_t type_id
+        = type_id_from_base_pointer<states...>(p_current_state_raw);
+
+#else
+
+      if (func == nullptr) {
+        return 0;
+      }
+
+      std::size_t type_id = func(p_current_state_raw);
+
+#endif /* __cplusplus >= 201703L */
+
+      if (type_id == -1) {
+        return 0;
+      }
+
+      *reinterpret_cast<std::size_t*>(pdata) = type_id;
+
+      return sizeof(std::size_t);
     }
+
+#if __cplusplus < 201703L
+
+    template<
+      int = 0
+    >
+    base_state_pointer_type allocate_state_from_id(std::size_t type_id) {
+      return nullptr;
+    }
+
+    template<
+      typename first,
+      typename... rest
+    >
+    base_state_pointer_type allocate_state_from_id(std::size_t type_id) {
+      if (type_id == first::type_id()) {
+        return state_machine::allocate_state<first>();
+      }
+      return allocate_state_from_id<rest...>(type_id);
+    }
+
+#endif /* __cplusplus < 201703L */
 
     /**
      * @brief Load the state machine's state from memory.
@@ -916,21 +994,56 @@ namespace cfsm {
      * @param pdata Pointer to char array.
      * @param datalen Size of the char array.
      */
-    std::size_t load(const char *pdata, std::size_t datalen) {
+#if __cplusplus < 201402L
+    std::size_t load(
+        const char *pdata,
+        const std::size_t datalen,
+        std::function<base_state_pointer_type(std::size_t)> func
+    ) {
+#else
+    std::size_t load(const char *pdata, const std::size_t datalen) {
+#endif
       if (!pdata) {
         return 0;
       }
-      if (datalen < sizeof(p_current_state)) {
+      if (datalen < sizeof(std::size_t)) {
         return 0;
       }
 
-      p_current_state =
-        base_state_type(*reinterpret_cast<base_state *const *>(pdata));
+      std::size_t type_id = *reinterpret_cast<std::size_t const *>(pdata);
 
-      return sizeof(p_current_state);
+#if __cplusplus >= 201703L
+
+      base_state_pointer_type p_state = nullptr;
+      ([&] {
+        if (!p_state && type_id == states::type_id()) {
+          p_state = state_machine::allocate_state<states>();
+        }
+      }(), ...);
+
+#elif __cplusplus >= 201402L
+
+      base_state_pointer_type p_state =
+        allocate_state_from_id<states...>(type_id);
+
+#else
+
+      if (func == nullptr) {
+        return 0;
+      }
+
+      base_state_pointer_type p_state = func(type_id);
+
+#endif /* __cplusplus >= 201703L */
+
+      if (!p_state) {
+        return 0;
     }
   
-#endif /* Disable serialization */
+      p_current_state = base_state_type(p_state);
+
+      return sizeof(std::size_t);
+    }
 
     /**
      * @brief Destructor for the state machine.
@@ -947,11 +1060,6 @@ namespace cfsm {
 
 #if __cplusplus >= 201402L
 
-      /*
-       * Calling stop() or dtor after saving the state machine will never call
-       * delete_state_pool(). The internal state pool will remain valid in
-       * memory till an operable state machine instance calls stop() or dtor.
-       */
       state_allocator<cfsm::state, sizeof...(states)>::delete_state_pool();
 
 #endif
