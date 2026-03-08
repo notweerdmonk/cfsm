@@ -348,8 +348,26 @@ namespace cfsm {
     using base_state_type = std::unique_ptr<base_state, state_deleter>;
     base_state_type p_current_state{nullptr}; ///< Pointer to the current state object.
  
-    std::atomic<bool> transition_lock{false};
+    std::atomic<bool> lock{false}; ///< Atomic boolean flag to synchronize concurrent operations.
   
+    /* Atomic lock acquire and release */
+
+    void lock_acquire() {
+      while(lock.exchange(true, std::memory_order_acquire)) {
+#if __cplusplus >= 202002L
+        lock.wait(true);
+#endif
+      }
+    }
+
+    void lock_release() {
+      lock.store(false, std::memory_order_release);
+#if __cplusplus >= 202002L
+      lock.notify_one();
+#endif
+    }
+
+
     /* Ensure the given state is valid */
 
 #if __cplusplus >= 201402L
@@ -730,13 +748,18 @@ namespace cfsm {
     void start(void *dataptr) {
       static_assert(is_valid_state<initial_state>(), "Invalid initial state");
   
+      lock_acquire();
+
       p_current_state =
         base_state_type(state_machine::allocate_state<initial_state>());
       if (!p_current_state) {
+        lock_release();
         throw std::runtime_error("State pointer is null");
       }
   
       p_current_state->on_enter(dataptr);
+
+      lock_release();
     }
   
     /**
@@ -762,20 +785,22 @@ namespace cfsm {
       static_assert(is_valid_state<from_state>(), "Invalid source state");
       static_assert(is_valid_state<to_state>(), "Invalid target state");
 
-      if (dynamic_cast<from_state*>(p_current_state.get()) == nullptr) {
-        return false;
-      }
-  
+      lock_acquire();
+
       if (!p_current_state) {
+        lock_release();
         throw std::runtime_error("State pointer is null");
       }
   
-      while (transition_lock.load(std::memory_order_release) != false);
-      transition_lock.store(true, std::memory_order_acquire);
+      if (dynamic_cast<from_state*>(p_current_state.get()) == nullptr) {
+        lock_release();
+        return false;
+      }
 
       base_state_pointer_type p_new_state =
         state_machine::allocate_state<to_state>();
       if (!p_new_state) {
+        lock_release();
         std::ostringstream oss;
         oss << "Failed to allocate new state, state_pool: " << state_pool;
         throw std::runtime_error(oss.str());
@@ -789,7 +814,7 @@ namespace cfsm {
       p_current_state = base_state_type(p_new_state);
       p_current_state->on_enter(dataptr);
   
-      transition_lock.store(false, std::memory_order_acquire);
+      lock_release();
 
       return true;
     }
@@ -804,25 +829,31 @@ namespace cfsm {
      * @param dataptr Opaque pointer to user data.
      */
     void stop(void *dataptr) {
-      if (!p_current_state) {
-        return;
-      }
+      lock_acquire();
 
-      p_current_state->on_exit(dataptr);
+      do {
+        if (!p_current_state) {
+          break;
+        }
 
-      delete_current_state();
+        p_current_state->on_exit(dataptr);
+
+        delete_current_state();
 
 #if __cplusplus >= 201402L
 
-      /*
-       * Calling stop() or dtor after saving the state machine will never call
-       * delete_state_pool(). The internal state pool will remain valid in
-       * memory till an operable state machine instance calls stop() or dtor.
-       */
-      state_allocator<cfsm::state, sizeof...(states)>::delete_state_pool();
+        /*
+         * Calling stop() or dtor after saving the state machine will never call
+         * delete_state_pool(). The internal state pool will remain valid in
+         * memory till an operable state machine instance calls stop() or dtor.
+         */
+        state_allocator<cfsm::state, sizeof...(states)>::delete_state_pool();
 
 #endif
 
+      } while (0);
+
+      lock_release();
     }
 
     /**
@@ -837,8 +868,14 @@ namespace cfsm {
      * @return Pointer of the state class provided as template parameter.
      */
     template<typename state_type = base_state>
-    const state_type* state() const {
-      return dynamic_cast<state_type*>(p_current_state.get());
+    const state_type* state() {
+      state_type *cur_state = nullptr;
+
+      lock_acquire();
+      cur_state = dynamic_cast<state_type*>(p_current_state.get());
+      lock_release();
+
+      return cur_state;
     }
 
 #if 0 /* Disable serialization */

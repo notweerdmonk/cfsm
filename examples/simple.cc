@@ -442,18 +442,15 @@ void test_concurrency_lazy() {
 #endif
 
   std::vector<std::thread> threads;
-  std::atomic<bool> start_flag{false};
 
   threads.emplace_back(
-      [&fsm, &start_flag] {
-        while (start_flag.load(std::memory_order_release) == false);
+      [&fsm] {
         while (fsm.state<state_1>() == nullptr);
         assert((fsm.transition<state_1, state_2>(nullptr)));
       }
   );
   threads.emplace_back(
-      [&fsm, &start_flag] {
-        while (start_flag.load(std::memory_order_release) == false);
+      [&fsm] {
         while (fsm.state<state_2>() == nullptr);
         assert((fsm.transition<state_2, state_1>(nullptr)));
       }
@@ -461,13 +458,90 @@ void test_concurrency_lazy() {
 
   fsm.start<state_1>(nullptr);
 
-  start_flag.store(true, std::memory_order_acquire);
+  for (auto &t : threads) {
+    t.join();
+  }
+
+  fsm.stop(nullptr);
+}
+
+void test_concurrency_internal() {
+#if __cplusplus >= 201402L
+  state_machine_int<
+    state,
+    nullptr,
+    state_1,
+    state_2
+  > fsm;
+
+  std::vector<std::thread> threads;
+
+  threads.emplace_back(
+      [&fsm] {
+        while (fsm.state<state_1>() == nullptr);
+        assert((fsm.transition<state_1, state_2>(nullptr)));
+      }
+  );
+  threads.emplace_back(
+      [&fsm] {
+        while (fsm.state<state_2>() == nullptr);
+        assert((fsm.transition<state_2, state_1>(nullptr)));
+      }
+  );
+
+  fsm.start<state_1>(nullptr);
 
   for (auto &t : threads) {
     t.join();
   }
 
   fsm.stop(nullptr);
+
+#else
+#warning Cannot test internal preallocated storage for versions below C++14
+  std::cerr << "Cannot test internal preallocated storage for versions below"
+    "C++14\n";
+#endif
+}
+
+void test_concurrency_internal_static() {
+#if __cplusplus >= 201402L
+  state_machine<
+    state,
+    alloc_type::STATIC,
+    nullptr,
+    state_1,
+    state_2
+  > fsm;
+
+  std::vector<std::thread> threads;
+
+  threads.emplace_back(
+      [&fsm] {
+        while (fsm.state<state_1>() == nullptr);
+        assert((fsm.transition<state_1, state_2>(nullptr)));
+      }
+  );
+  threads.emplace_back(
+      [&fsm] {
+        while (fsm.state<state_2>() == nullptr);
+        assert((fsm.transition<state_2, state_1>(nullptr)));
+      }
+  );
+
+  fsm.start<state_1>(nullptr);
+
+  for (auto &t : threads) {
+    t.join();
+  }
+
+  fsm.stop(nullptr);
+
+#else
+#warning Cannot test internal statically preallocated storage for versions below C++14
+  std::cerr << "Cannot test internal statically preallocated storage for"
+    "versions below C++14\n";
+#endif
 }
 
 #if 0 /* Disable serialization */
