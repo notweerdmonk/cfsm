@@ -58,17 +58,22 @@
  * template named "transition". The template parameters are the types of
  * source state class and target state class respectively.
  *
- * User defined template specializations should provide two members. First,
- * a static constexpr bool member variable named "exists" which should be
- * set as "true"; an helper macro "TRANSITION_EXISTS" is provided for this
- * purpose. Second, an implementation of the "operator()" function, the call
- * operator overload, which returns void and takes a void pointer as its
- * argument. This function shall be called on a valid transition (source and
- * target states are valid classes and the template specialization of
- * "transition" struct for source and target state exists), triggered by
- * calling the "transition" member function of the "state_machine" class.
+ * User defined template specializations should provide an implementation of the
+ * `operator()` function, the call operator overload, which returns void and
+ * takes a void pointer as its argument. This function shall be called on a
+ * valid transition (source and target states are valid classes and the template
+ * specialization of `transition` struct for source and target state exists),
+ * triggered by calling the "transition" member function of the `state_machine`
+ * class.
+ *
  * The function signature shall be:
  * 
+ *   @brief Functor call operator for the transition.
+ *
+ *   This operator is invoked during a state transition.
+ *
+ *   @param dataptr Opaque pointer to user data.
+ *
  *   void operator()(void *dataptr);
  *
  *
@@ -214,31 +219,16 @@ namespace cfsm {
    * @tparam to_state The state type representing the target state.
    */
   template <typename from_state, typename to_state>
-  struct transition {
-    /**
-     * @brief Static constant bool member variable which indicates a valid
-     * transition between states, if its value is `true`.
-     */
-    static constexpr bool exists = false;
+  struct transition;
 
-    /**
-     * @brief Helper macro to define "exists" static member variable as true.
-     */
-    #define TRANSITION_EXISTS static constexpr bool exists = true
+  template<typename, typename = void>
+  constexpr bool is_type_complete_v = false;
 
-    /**
-     * @brief Functor call operator for the transition.
-     * 
-     * This operator is invoked during a state transition. The default behavior
-     * is to print an invalid transition message, unless specialized for
-     * specific state transitions.
-     *
-     * @param dataptr Opaque pointer to user data.
-     */
-    void operator()(void *dataptr) {
-      assert((0, "Generic transition between states"));
-    }
-  };
+  template<typename T>
+  constexpr bool is_type_complete_v<
+    T,
+    std::void_t<decltype(sizeof(T))>
+  > = true;
 
   /**
    * @brief Helper macro to begin definition of transition between `from` and
@@ -246,29 +236,18 @@ namespace cfsm {
    *
    * User needs to implement the `operator()` member function.
    *
-   * TRANSITION_BEGIN(from, to)
-   *   void operator()() {
+   * CFSM_TRANSITION(from, to) {
    *
-   *   }
-   * TRANSITION_END
+   * }
    *
-   * @see TRANSITION_END
    */
-  #define TRANSITION_BEGIN(from, to) \
+  #define CFSM_TRANSITION(from, to) \
     template <> \
     struct cfsm::transition<from, to> { \
-      TRANSITION_EXISTS;
+      void operator()(void *dataptr); \
+    }; \
+    void cfsm::transition<from, to>::operator()(void *dataptr)
 
-  /**
-   * @brief Helper macro to end definition of transition between `from` and
-   * `to` states.
-   *
-   * @see TRANSITION_BEGIN
-   */
-  #define TRANSITION_END \
-    };
-
-  
   /**
    * @brief Enum which specifies state objects allocation scheme for a state
    * machine.
@@ -781,8 +760,10 @@ namespace cfsm {
      */
     template <
       typename from_state, typename to_state,
-      typename std::enable_if<transition<from_state, to_state>::exists,
-        bool>::type = false
+      typename std::enable_if<
+        is_type_complete_v<transition<from_state, to_state>>,
+        bool
+      >::type = false
     >
     bool transition(void *dataptr) {
       static_assert(is_valid_state<from_state>(), "Invalid source state");

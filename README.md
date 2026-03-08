@@ -35,20 +35,22 @@ Transitions between user defined states are represented by a struct template
 named `transition`. The template parameters are the types of source state class
 and target state class respectively.
 
-User defined template specializations should provide two members. First, a
-static constexpr bool member variable named `exists` which should be set as
-`true`; an helper macro `TRANSITION_EXISTS` is provided for this purpose.
-Second, an implementation of the `operator()` function, the call operator
-overload, which returns void and takes a void pointer as its argument. This
-function shall be called on a valid transition (source and target states are
-valid classes and the template specialization of `transition` struct for
-source and target state exists), triggered by calling the `transition` member
-function of the `state_machine` class.
+User defined template specializations should provide an implementation of the
+`operator()` function, the call operator overload, which returns void and
+takes a void pointer as its argument. This function shall be called on a
+valid transition (source and target states are valid classes and the template
+specialization of `transition` struct for source and target state exists),
+triggered by calling the `transition` member function of the `state_machine`
+class.
+
 The function signature shall be:
 
 ```C
 void operator()(void *dataptr);
 ```
+
+The void pointer is provided to pass user data (such as any context) to the
+transition function opaquely.
 
 ---
 
@@ -128,11 +130,17 @@ pointer shall be passed to `state_machine::transition` function.
 /* Specialize transition for state_a -> state_b */
 template<>
 struct cfsm::transition<state_a, state_b> {
-  static constexpr bool exists = true;
   void operator()(void *dataptr) {
     std::cout << "Transitioning from state A to state B\n";
   }
 };
+
+/* Another way to define state transitions using provided helper macro */
+CFSM_TRANSITION(state_a, state_b) {
+  context_type *p_ctx = reinterpret_cast<context_type*>(dataptr);
+  if (!p_ctx) return;
+  std::cout << "Transitioning from state A to state B\n";
+}
 ```
 
 State machine objects are created with template specialized constructor of

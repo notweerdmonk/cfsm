@@ -40,32 +40,24 @@ public:
 };
 
 /* Specialize transition for state_a -> state_b */
-TRANSITION_BEGIN(state_a, state_b)
-  void operator()(void *dataptr) {
-    std::cout << "Transitioning from state A to state B\n";
-  }
-TRANSITION_END;
+CFSM_TRANSITION(state_a, state_b) {
+  std::cout << "Transitioning from state A to state B\n";
+}
 
 /* Specialize transition for state_a -> state_a */
-TRANSITION_BEGIN(state_a, state_a)
-  void operator()(void *dataptr) {
-    std::cout << "Transitioning from state A back to state A\n";
-  }
-TRANSITION_END;
+CFSM_TRANSITION(state_a, state_a) {
+  std::cout << "Transitioning from state A back to state A\n";
+}
 
 /* Specialize transition for state_b -> state_a */
-TRANSITION_BEGIN(state_b, state_a)
-  void operator()(void *dataptr) const {
-    std::cout << "Transitioning from state B to state A\n";
-  }
-TRANSITION_END;
+CFSM_TRANSITION(state_b, state_a) {
+  std::cout << "Transitioning from state B to state A\n";
+}
 
 /* Specialize transition for state_a -> state_c */
-TRANSITION_BEGIN(state_a, state_c)
-  void operator()(void *dataptr) const {
-    std::cout << "Transitioning from state A to state C\n";
-  }
-TRANSITION_END;
+CFSM_TRANSITION(state_a, state_c) {
+  std::cout << "Transitioning from state A to state C\n";
+}
 
 /* dummy state */
 class state_foo {
@@ -168,7 +160,6 @@ const std::size_t state_2::type_id_ =
 
 template<>
 struct cfsm::transition<state_1, state_2> {
-  TRANSITION_EXISTS;
   void operator()(void *dataptr) {
     std::cout << "Transitioning from state 1 to state 2\n";
   }
@@ -176,7 +167,6 @@ struct cfsm::transition<state_1, state_2> {
 
 template<>
 struct cfsm::transition<state_2, state_1> {
-  TRANSITION_EXISTS;
   void operator()(void *dataptr) {
     std::cout << "Transitioning from state 2 to state 1\n";
   }

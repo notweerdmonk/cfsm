@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <chrono>
 #include <cfsm.hpp>
 
@@ -74,15 +75,11 @@ const std::size_t state_b::type_id_ =
   >::gen_type_id();
 #endif
 
-TRANSITION_BEGIN(state_a, state_b)
-  void operator()(void *dataptr) {
-  }
-TRANSITION_END;
+CFSM_TRANSITION(state_a, state_b) {
+}
 
-TRANSITION_BEGIN(state_b, state_a)
-  void operator()(void *dataptr) const {
-  }
-TRANSITION_END;
+CFSM_TRANSITION(state_b, state_a) {
+}
 
 /* Static state storage */
 static struct _state_storage {
@@ -269,6 +266,82 @@ void benchmark_state_machine_external(int num_transitions) {
     << 1000000 * elapsed.count() / num_transitions << " microseconds\n";
 }
 
+void benchmark_concurrent_state_machine_lazy(
+    int num_transitions, int num_threads
+) {
+  std::cout << "Concurrent lazy allocation\n";
+
+#if __cplusplus >= 201402L
+  state_machine<state, alloc_type::LAZY, nullptr, state_a, state_b> fsm;
+#else
+  state_machine<state, alloc_type::LAZY, nullptr, 2> fsm;
+#endif
+
+  std::vector<std::thread> threads;
+  fsm.start<state_a>(nullptr);
+
+  /* Warmup */
+  for (int t = 0; t < num_threads; ++t) {
+    threads.emplace_back(
+        [&] {
+          for (int i = 0; i < num_transitions / num_threads; ++i) {
+            if (i % 2 == 0) {
+              while (fsm.state<state_a>() == nullptr);
+              fsm.transition<state_a, state_b>(nullptr);
+            } else {
+              while (fsm.state<state_b>() == nullptr);
+              fsm.transition<state_b, state_a>(nullptr);
+            }
+          }
+        }
+    );
+  }
+
+  for (auto &t : threads) {
+    t.join();
+  }
+  fsm.stop(nullptr);
+
+  threads.clear();
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+
+  fsm.start<state_a>(nullptr);
+
+  for (int t = 0; t < num_threads; ++t) {
+    threads.emplace_back(
+        [&] {
+          for (int i = 0; i < num_transitions / num_threads; ++i) {
+            if (i % 2 == 0) {
+              while (fsm.state<state_a>() == nullptr);
+              fsm.transition<state_a, state_b>(nullptr);
+            } else {
+              while (fsm.state<state_b>() == nullptr);
+              fsm.transition<state_b, state_a>(nullptr);
+            }
+          }
+        }
+    );
+  }
+
+  for (auto &t : threads) {
+    t.join();
+  }
+
+  fsm.stop(nullptr);
+
+  auto end_time = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed = end_time - start_time;
+
+  std::cout << num_transitions << " transitions took "
+            << elapsed.count() << " seconds." << std::endl;
+
+  std::cout << "Avg time per transition: "
+    << 1000000 * elapsed.count() / num_transitions << " microseconds\n";
+
+  threads.clear();
+}
+
 static inline uint64_t rdtsc() {
     uint32_t lo, hi;
     asm volatile ("rdtsc" : "=a" (lo), "=d" (hi));
@@ -304,6 +377,7 @@ int main() {
   benchmark_state_machine_external(8000000);
   benchmark_state_machine_internal(8000000);
   benchmark_state_machine_internal_static(8000000);
+  benchmark_concurrent_state_machine_lazy(8000000, 8);
 
   return 0;
 }

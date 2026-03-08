@@ -83,47 +83,41 @@ public:
 /**
  * @brief Transition from Green to Yellow light.
  */
-TRANSITION_BEGIN(green_light, yellow_light)
-  void operator()(void *dataptr) const {
-    struct fsm_data *pdata = reinterpret_cast<struct fsm_data*>(dataptr);
-    std::cout << pdata->name << ": Transitioning from "
-      << ANSI_FG_GREEN << "Green" << ANSI_RESET << " to "
-      << ANSI_FG_YELLOW << "Yellow" << ANSI_RESET << " light.\n";
-    std::cout << pdata->trafficname << " is slowing down.\n";
-  }
-TRANSITION_END
+CFSM_TRANSITION(green_light, yellow_light) {
+  struct fsm_data *pdata = reinterpret_cast<struct fsm_data*>(dataptr);
+  std::cout << pdata->name << ": Transitioning from "
+    << ANSI_FG_GREEN << "Green" << ANSI_RESET << " to "
+    << ANSI_FG_YELLOW << "Yellow" << ANSI_RESET << " light.\n";
+  std::cout << pdata->trafficname << " is slowing down.\n";
+}
 
 /**
  * @brief Transition from Yellow to Red light.
  */
-TRANSITION_BEGIN(yellow_light, red_light)
-  void operator()(void *dataptr) const {
-    struct fsm_data *pdata = reinterpret_cast<struct fsm_data*>(dataptr);
+CFSM_TRANSITION(yellow_light, red_light) {
+  struct fsm_data *pdata = reinterpret_cast<struct fsm_data*>(dataptr);
 
-    std::cout << pdata->name << ": Transitioning from "
-      << ANSI_FG_YELLOW << "Yellow" << ANSI_RESET << " to "
-      << ANSI_FG_RED << "Red" << ANSI_RESET << " light.\n";
-    std::cout << pdata->trafficname << " has stopped.\n";
+  std::cout << pdata->name << ": Transitioning from "
+    << ANSI_FG_YELLOW << "Yellow" << ANSI_RESET << " to "
+    << ANSI_FG_RED << "Red" << ANSI_RESET << " light.\n";
+  std::cout << pdata->trafficname << " has stopped.\n";
 
-    pdata->plock->lock();
-    pdata->ns_turn = (pdata->type == fsm_enum::NS) ? false : true;
-    /* Notify East-West / North-South FSM to start */
-    pdata->cv.notify_all();
-  }
-TRANSITION_END
+  pdata->plock->lock();
+  pdata->ns_turn = (pdata->type == fsm_enum::NS) ? false : true;
+  /* Notify East-West / North-South FSM to start */
+  pdata->cv.notify_all();
+}
 
 /**
  * @brief Transition from Red to Green light.
  */
-TRANSITION_BEGIN(red_light, green_light)
-  void operator()(void *dataptr) const {
-    struct fsm_data *pdata = reinterpret_cast<struct fsm_data*>(dataptr);
-    std::cout << pdata->name << ": Transitioning from "
-      << ANSI_FG_RED << "Red" << ANSI_RESET << " to "
-      << ANSI_FG_GREEN << "Green" << ANSI_RESET << " light.\n";
-    std::cout << pdata->trafficname << " is passing.\n";
-  }
-TRANSITION_END
+CFSM_TRANSITION(red_light, green_light) {
+  struct fsm_data *pdata = reinterpret_cast<struct fsm_data*>(dataptr);
+  std::cout << pdata->name << ": Transitioning from "
+    << ANSI_FG_RED << "Red" << ANSI_RESET << " to "
+    << ANSI_FG_GREEN << "Green" << ANSI_RESET << " light.\n";
+  std::cout << pdata->trafficname << " is passing.\n";
+}
 
 /* Traffic signal controller */
 class traffic_ctl {
