@@ -116,6 +116,8 @@
  */
 
 #include <type_traits>
+#include <atomic>
+#include <memory>
 #include <sstream>
 #include <cassert>
 
@@ -324,8 +326,29 @@ namespace cfsm {
 #endif /* __cplusplus >= 201402L */
 
   class state_machine {
+    using base_state_pointer_type = base_state*;
 
-    base_state* p_current_state = nullptr; ///< Pointer to the current state object.
+    struct state_deleter {
+
+      template <
+        enum alloc_type type_ = type
+      >
+      typename std::enable_if<type_ != alloc_type::LAZY, void>::type
+      operator()(base_state_pointer_type ptr) const {}
+
+      template <
+        enum alloc_type type_ = type
+      >
+      typename std::enable_if<type_ == alloc_type::LAZY, void>::type
+      operator()(base_state_pointer_type ptr) const {
+        delete ptr;
+      }
+    };
+
+    using base_state_type = std::unique_ptr<base_state, state_deleter>;
+    base_state_type p_current_state{nullptr}; ///< Pointer to the current state object.
+ 
+    std::atomic<bool> transition_lock{false};
   
     /* Ensure the given state is valid */
 
@@ -648,7 +671,7 @@ namespace cfsm {
      */
     void delete_current_state() {
       if (type == alloc_type::LAZY) {
-        delete p_current_state;
+        p_current_state.reset();
       }
       p_current_state = nullptr;
     }
@@ -707,7 +730,8 @@ namespace cfsm {
     void start(void *dataptr) {
       static_assert(is_valid_state<initial_state>(), "Invalid initial state");
   
-      p_current_state = state_machine::allocate_state<initial_state>();
+      p_current_state =
+        base_state_type(state_machine::allocate_state<initial_state>());
       if (!p_current_state) {
         throw std::runtime_error("State pointer is null");
       }
@@ -738,7 +762,7 @@ namespace cfsm {
       static_assert(is_valid_state<from_state>(), "Invalid source state");
       static_assert(is_valid_state<to_state>(), "Invalid target state");
 
-      if (dynamic_cast<from_state*>(p_current_state) == nullptr) {
+      if (dynamic_cast<from_state*>(p_current_state.get()) == nullptr) {
         return false;
       }
   
@@ -746,7 +770,11 @@ namespace cfsm {
         throw std::runtime_error("State pointer is null");
       }
   
-      base_state* p_new_state = state_machine::allocate_state<to_state>();
+      while (transition_lock.load(std::memory_order_release) != false);
+      transition_lock.store(true, std::memory_order_acquire);
+
+      base_state_pointer_type p_new_state =
+        state_machine::allocate_state<to_state>();
       if (!p_new_state) {
         std::ostringstream oss;
         oss << "Failed to allocate new state, state_pool: " << state_pool;
@@ -754,16 +782,15 @@ namespace cfsm {
       }
   
       p_current_state->on_exit(dataptr);
-      if (type == alloc_type::LAZY) {
-        delete p_current_state;
-      }
   
       /* Call transition functor for "from_state" to "to_state" transition */
       cfsm::transition<from_state, to_state>()(dataptr);
   
-      p_current_state = p_new_state;
+      p_current_state = base_state_type(p_new_state);
       p_current_state->on_enter(dataptr);
   
+      transition_lock.store(false, std::memory_order_acquire);
+
       return true;
     }
   
@@ -811,8 +838,10 @@ namespace cfsm {
      */
     template<typename state_type = base_state>
     const state_type* state() const {
-      return dynamic_cast<state_type*>(p_current_state);
+      return dynamic_cast<state_type*>(p_current_state.get());
     }
+
+#if 0 /* Disable serialization */
 
     /**
      * @brief Save the state machine's state to memory.
@@ -832,7 +861,7 @@ namespace cfsm {
         return 0;
       }
 
-      *reinterpret_cast<base_state**>(pdata) = p_current_state;
+      *reinterpret_cast<base_state**>(pdata) = p_current_state.get();
 
       /* To avoid incorrect free in dtor set p_current_state as nullptr */
       p_current_state = nullptr;
@@ -858,11 +887,14 @@ namespace cfsm {
         return 0;
       }
 
-      p_current_state = *reinterpret_cast<base_state *const *>(pdata);
+      p_current_state =
+        base_state_type(*reinterpret_cast<base_state *const *>(pdata));
 
       return sizeof(p_current_state);
     }
   
+#endif /* Disable serialization */
+
     /**
      * @brief Destructor for the state machine.
      * 

@@ -1,4 +1,7 @@
 #include <iostream>
+#include <vector>
+#include <thread>
+#include <atomic>
 #include <cfsm.hpp>
 
 using namespace cfsm;
@@ -422,6 +425,52 @@ void test_preallocated_internal_static() {
 #endif
 }
 
+void test_concurrency_lazy() {
+#if __cplusplus >= 201402L
+  state_machine_lazy<
+    state,
+    nullptr,
+    state_1,
+    state_2
+  > fsm;
+#else
+  state_machine_lazy<
+    state,
+    nullptr,
+    2
+  > fsm;
+#endif
+
+  std::vector<std::thread> threads;
+  std::atomic<bool> start_flag{false};
+
+  threads.emplace_back(
+      [&fsm, &start_flag] {
+        while (start_flag.load(std::memory_order_release) == false);
+        while (fsm.state<state_1>() == nullptr);
+        assert((fsm.transition<state_1, state_2>(nullptr)));
+      }
+  );
+  threads.emplace_back(
+      [&fsm, &start_flag] {
+        while (start_flag.load(std::memory_order_release) == false);
+        while (fsm.state<state_2>() == nullptr);
+        assert((fsm.transition<state_2, state_1>(nullptr)));
+      }
+  );
+
+  fsm.start<state_1>(nullptr);
+
+  start_flag.store(true, std::memory_order_acquire);
+
+  for (auto &t : threads) {
+    t.join();
+  }
+
+  fsm.stop(nullptr);
+}
+
+#if 0 /* Disable serialization */
 void test_serialization() {
 #if __cplusplus >= 201402L
   //state_machine<
@@ -442,8 +491,7 @@ void test_serialization() {
   //  state,
   //  alloc_type::LAZY,
   //  nullptr,
-  //  state_1,
-  //  state_2
+  //  2
   //> fsm_copy;
   state_machine_lazy<
     state,
@@ -474,8 +522,7 @@ void test_serialization() {
     //  state,
     //  alloc_type::LAZY,
     //  nullptr,
-    //  state_1,
-    //  state_2
+    //  2
     //> fsm;
     state_machine_lazy<
       state,
@@ -510,6 +557,7 @@ void test_serialization() {
 
   fsm_copy.stop(nullptr);
 }
+#endif
 
 int main() {
   std::cout << "Lazy allocator test\n\n";
@@ -527,9 +575,15 @@ int main() {
   std::cout << "\nInternally allocated state objects in static array test\n\n";
   test_preallocated_internal_static();
 
+  std::cout << "\nConcurrency Lazy test\n\n";
+  test_concurrency_lazy();
+  std::cout << "test_concurrency_lazy end\n";
+
+#if 0 /* Disable serialization */
   std::cout << "\nSerialization test\n\n";
   test_serialization();
   std::cout << "test_serialization end\n";
+#endif
 
   return 0;
 }
